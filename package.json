@@ -5,6 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "clipboardy": "^2.3.0",
+    "iconv-lite": "^0.6.2",
     "papaparse": "^5.2.0"
   }
 }

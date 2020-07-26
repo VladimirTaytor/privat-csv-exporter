@@ -2,16 +2,18 @@ const Papaparse = require("papaparse")
 const path = require("path")
 const fs = require("fs")
 const clipboardy = require('clipboardy')
+const iconv = require('iconv-lite');
 
 const cwd = process.cwd()
 
-const files = process.argv.slice(2) || ['']
+const files = process.argv.slice(2) || []
 
 const config_path = process.env.CONFIG_PATH
 
 const config = config_path ? readConfigFile() : require('./default_config.json')
 
 const WITH_FILTERING = config.withFiltering
+const ENCODING = config.sourceEncoding
 
 function readConfigFile() {
   const customConfig = fs.readFileSync(config_path,'utf-8')
@@ -21,7 +23,8 @@ function readConfigFile() {
 function readFiles(files) {
   return files.map(fileName => {
     const filePath = path.join(cwd, fileName)
-    return fs.readFileSync(filePath, 'utf-8')
+    console.log(`Reading file: ${filePath}`)
+    return iconv.decode(fs.readFileSync(filePath), ENCODING).toString()
   })
 }
 
@@ -57,8 +60,7 @@ function parseCsv(csvString, skipHeaders = false) {
           }
         }
 
-        const toCSV = [filteredHeaders, ...filteredRows]
-
+        const toCSV = skipHeaders ? filteredRows : [filteredHeaders, ...filteredRows]
         const results = Papaparse.unparse(toCSV)
 
         return resolve(results)

@@ -2,6 +2,7 @@
   "importToClipboard": true,
   "importToFile": true,
   "withFiltering": false,
+  "sourceEncoding": "cp1251",
   "requiredFields": [
     {
       "name": "Счет",
