@@ -1,75 +1,93 @@
 const Papaparse = require("papaparse")
+const path = require("path")
 const fs = require("fs")
+const clipboardy = require('clipboardy')
 
-const args = process.argv.slice(2) || ['']
+const cwd = process.cwd()
 
-const filename = args
-const data = fs.readFileSync('./uah_utf.csv', 'utf-8')
+const files = process.argv.slice(2) || ['']
 
-const WITH_FILTERING = false
+const config_path = process.env.CONFIG_PATH
 
-Papaparse.parse(data, {
-  config: {
-    skipEmptyLines: true,
-  },
-  complete: ({data}) => {
-    const [headers, ...rows] = data
-    const requiredFields = [
-      {
-        name: 'Счет',
-        exportedName: 'Account'
-      },
-      {
-        name: 'Номер документа',
-        exportedName: 'Check #'
-      },
-      {
-        name: 'Дата операции',
-        exportedName: 'Date'
-      },
-      {
-        name: 'Корреспондент',
-        exportedName: 'Payee'
-      },
-      {
-        name: 'Сумма',
-        exportedName: 'Amount'
-      },
-      {
-        name: 'Назначение платежа',
-        exportedName: 'Memo'
-      }
-    ]
-    let filteredHeaders = []
-    let filteredRows = []
+const config = config_path ? readConfigFile() : require('./default_config.json')
 
-    for (let i = 0; i < headers.length; i++) {
-      const header = WITH_FILTERING ?
-        requiredFields.find(field => field.name === headers[i]) :
-        {
-          name: headers[i],
-          exportedName: headers[i]
+const WITH_FILTERING = config.withFiltering
+
+function readConfigFile() {
+  const customConfig = fs.readFileSync(config_path,'utf-8')
+  return JSON.parse(customConfig)
+}
+
+function readFiles(files) {
+  return files.map(fileName => {
+    const filePath = path.join(cwd, fileName)
+    return fs.readFileSync(filePath, 'utf-8')
+  })
+}
+
+function parseCsv(csvString, skipHeaders = false) {
+  return new Promise(resolve => {
+    Papaparse.parse(csvString, {
+      config: {
+        skipEmptyLines: true,
+      },
+      complete: ({data}) => {
+        const [headers, ...rows] = data
+        const requiredFields = config.requiredFields || []
+        let filteredHeaders = []
+        let filteredRows = []
+
+        for (let i = 0; i < headers.length; i++) {
+          const header = WITH_FILTERING ?
+            requiredFields.find(field => field.name === headers[i]) :
+            {
+              name: headers[i],
+              exportedName: headers[i]
+            }
+
+          if (header) {
+            filteredHeaders.push(header.exportedName)
+
+            for (let j = 0; j < rows.length; j++) {
+              const value = rows[j][i]
+              if (!value) continue
+              if (!filteredRows[j]) filteredRows[j] = []
+              filteredRows[j].push(rows[j][i])
+            }
+          }
         }
 
-      if (header) {
-        filteredHeaders.push(header.exportedName)
+        const toCSV = [filteredHeaders, ...filteredRows]
 
-        for (let j = 0; j < rows.length; j++) {
-          const value = rows[j][i]
-          if (!value) continue
-          if (!filteredRows[j]) filteredRows[j] = []
-          filteredRows[j].push(rows[j][i])
-        }
+        const results = Papaparse.unparse(toCSV)
+
+        return resolve(results)
       }
-    }
+    })
+  })
+}
 
-    const toCSV = [filteredHeaders, ...filteredRows]
+function store(data) {
+  if (config.importToClipboard)
+    clipboardy.writeSync(data)
+  if (config.importToFile)
+    fs.writeFileSync('result.csv', data)
+}
 
-    const results = Papaparse.unparse(toCSV)
+function processImport() {
+  const csvStrings = readFiles(files)
 
-    fs.writeFileSync('./new_data.csv', results)
-  }
-})
+  const firstString = csvStrings.shift()
+  const processes = [parseCsv(firstString), ...csvStrings.map(csvString => parseCsv(csvString, true))]
+
+  return Promise.all(processes)
+    .then(processedData => {
+      const data = processedData.join('\n')
+      return store(data)
+    })
+}
+
+processImport()
 
 
 

@@ -1,0 +1,31 @@
+{
+  "importToClipboard": true,
+  "importToFile": true,
+  "withFiltering": false,
+  "requiredFields": [
+    {
+      "name": "Счет",
+      "exportedName": "Account"
+    },
+    {
+      "name": "Номер документа",
+      "exportedName": "Check #"
+    },
+    {
+      "name": "Дата операции",
+      "exportedName": "Date"
+    },
+    {
+      "name": "Корреспондент",
+      "exportedName": "Payee"
+    },
+    {
+      "name": "Сумма",
+      "exportedName": "Amount"
+    },
+    {
+      "name": "Назначение платежа",
+      "exportedName": "Memo"
+    }
+  ]
+}
